@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Evaluación: patrones en gráficos Q-Q</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #64748b;
+      --line: #d7dde5;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --ok: #15803d;
+      --bad: #b91c1c;
+      --warn: #b45309;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    header {
+      background: #172033;
+      color: white;
+      padding: 24px 18px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 4vw, 2.2rem);
+    }
+
+    header p {
+      margin: 0;
+      color: #dbeafe;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 18px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 14px;
+      align-items: end;
+    }
+
+    label {
+      display: block;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: 1rem;
+      background: white;
+    }
+
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 16px;
+      background: var(--accent);
+      color: white;
+      font-weight: bold;
+      font-size: 1rem;
+    }
+
+    button:hover { background: var(--accent-dark); }
+    button.secondary { background: #475569; }
+    button.secondary:hover { background: #334155; }
+    button.danger { background: #b91c1c; }
+    button.danger:hover { background: #991b1b; }
+
+    .hidden { display: none !important; }
+
+    .question-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #e0ecff;
+      color: #1e40af;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-weight: bold;
+      font-size: 0.9rem;
+    }
+
+    .canvas-wrap {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px;
+      overflow-x: auto;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      min-width: 720px;
+      height: auto;
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .option {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: #f8fafc;
+    }
+
+    .option input {
+      width: auto;
+      margin-top: 4px;
+    }
+
+    .muted { color: var(--muted); }
+
+    .result-box {
+      padding: 14px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid var(--line);
+      margin: 12px 0;
+    }
+
+    .ok { color: var(--ok); font-weight: bold; }
+    .bad { color: var(--bad); font-weight: bold; }
+    .warn { color: var(--warn); font-weight: bold; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.95rem;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      padding: 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th { background: #f1f5f9; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+    }
+
+    .note {
+      border-left: 5px solid var(--accent);
+      background: #eff6ff;
+      padding: 12px 14px;
+      border-radius: 10px;
+      margin-top: 12px;
+    }
+
+    @media print {
+      header, #configCard, #questionCard, .actions.no-print { display: none !important; }
+      body { background: white; }
+      main { max-width: none; padding: 0; }
+      .card { box-shadow: none; border: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Evaluación: patrones en gráficos cuantil-cuantil</h1>
+    <p>Identificación de patrones usando Q-Q plot contra la distribución normal.</p>
+  </header>
+
+  <main>
+    <section id="configCard" class="card">
+      <h2>Configuración de la evaluación</h2>
+      <p class="muted">El programa generará muestras aleatorias, mostrará el histograma y el Q-Q plot normal, y pedirá identificar el patrón más probable.</p>
+
+      <div class="grid">
+        <div>
+          <label for="studentName">Nombre del estudiante</label>
+          <input id="studentName" type="text" placeholder="Nombre completo" />
+        </div>
+        <div>
+          <label for="groupName">Grupo</label>
+          <input id="groupName" type="text" placeholder="Ej. 3A" />
+        </div>
+        <div>
+          <label for="sampleSize">Datos por distribución</label>
+          <input id="sampleSize" type="number" min="20" max="2000" step="10" value="150" />
+        </div>
+        <div>
+          <label for="questionCount">Número de preguntas</label>
+          <select id="questionCount">
+            <option value="6">6 preguntas</option>
+            <option value="8" selected>8 preguntas</option>
+            <option value="10">10 preguntas</option>
+            <option value="12">12 preguntas</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="note">
+        <strong>Nota para clase:</strong> el Q-Q plot normal no identifica una distribución exacta con certeza. Sirve para reconocer patrones compatibles con normalidad, sesgo, colas pesadas, colas ligeras o mezcla de grupos.
+      </div>
+
+      <div class="actions">
+        <button id="startBtn" type="button">Iniciar evaluación</button>
+      </div>
+    </section>
+
+    <section id="questionCard" class="card hidden">
+      <div class="question-top">
+        <span id="progress" class="badge">Pregunta 1 de 8</span>
+        <span id="seedInfo" class="muted"></span>
+      </div>
+
+      <h2 id="questionTitle">Observa el gráfico</h2>
+      <p>¿Qué patrón sugiere principalmente el Q-Q plot normal?</p>
+
+      <div class="canvas-wrap">
+        <canvas id="plotCanvas" width="1100" height="520" aria-label="Histograma y gráfico Q-Q normal"></canvas>
+      </div>
+
+      <form id="answerForm">
+        <div id="options" class="options"></div>
+        <div class="actions">
+          <button type="submit">Guardar respuesta y continuar</button>
+          <button id="finishEarlyBtn" class="secondary" type="button">Terminar evaluación</button>
+        </div>
+      </form>
+    </section>
+
+    <section id="resultsCard" class="card hidden">
+      <h2>Resultado de la evaluación</h2>
+      <div id="summary" class="result-box"></div>
+      <div id="details"></div>
+      <div class="actions no-print">
+        <button id="printBtn" type="button">Imprimir resultado</button>
+        <button id="downloadBtn" type="button" class="secondary">Descargar resultado en TXT</button>
+        <button id="restartBtn" type="button" class="danger">Reiniciar</button>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ============================================================
+    // Utilidades matemáticas
+    // ============================================================
+
+    function randn() {
+      let u = 0, v = 0;
+      while (u === 0) u = Math.random();
+      while (v === 0) v = Math.random();
+      return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+    }
+
+    function mean(arr) {
+      return arr.reduce((a, b) => a + b, 0) / arr.length;
+    }
+
+    function std(arr) {
+      const m = mean(arr);
+      const v = arr.reduce((s, x) => s + Math.pow(x - m, 2), 0) / (arr.length - 1);
+      return Math.sqrt(v);
+    }
+
+    function standardize(arr) {
+      const m = mean(arr);
+      const s = std(arr) || 1;
+      return arr.map(x => (x - m) / s);
+    }
+
+    function skewness(arr) {
+      const z = standardize(arr);
+      return z.reduce((s, x) => s + Math.pow(x, 3), 0) / z.length;
+    }
+
+    function excessKurtosis(arr) {
+      const z = standardize(arr);
+      return z.reduce((s, x) => s + Math.pow(x, 4), 0) / z.length - 3;
+    }
+
+    // Aproximación de la inversa de la normal estándar.
+    // Suficiente para construir Q-Q plots didácticos.
+    function normInv(p) {
+      if (p <= 0) return -Infinity;
+      if (p >= 1) return Infinity;
+
+      const a = [
+        -3.969683028665376e+01,
+         2.209460984245205e+02,
+        -2.759285104469687e+02,
+         1.383577518672690e+02,
+        -3.066479806614716e+01,
+         2.506628277459239e+00
+      ];
+      const b = [
+        -5.447609879822406e+01,
+         1.615858368580409e+02,
+        -1.556989798598866e+02,
+         6.680131188771972e+01,
+        -1.328068155288572e+01
+      ];
+      const c = [
+        -7.784894002430293e-03,
+        -3.223964580411365e-01,
+        -2.400758277161838e+00,
+        -2.549732539343734e+00,
+         4.374664141464968e+00,
+         2.938163982698783e+00
+      ];
+      const d = [
+         7.784695709041462e-03,
+         3.224671290700398e-01,
+         2.445134137142996e+00,
+         3.754408661907416e+00
+      ];
+
+      const plow = 0.02425;
+      const phigh = 1 - plow;
+      let q, r;
+
+      if (p < plow) {
+        q = Math.sqrt(-2 * Math.log(p));
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+               ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      }
+
+      if (p > phigh) {
+        q = Math.sqrt(-2 * Math.log(1 - p));
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) /
+                ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1);
+      }
+
+      q = p - 0.5;
+      r = q * q;
+      return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q /
+             (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1);
+    }
+
+    // ============================================================
+    // Generadores de distribuciones
+    // ============================================================
+
+    function sampleNormal(n) {
+      return Array.from({ length: n }, randn);
+    }
+
+    function sampleUniform(n) {
+      return Array.from({ length: n }, () => Math.random() * 2 - 1);
+    }
+
+    function sampleExponential(n) {
+      return Array.from({ length: n }, () => -Math.log(1 - Math.random()));
+    }
+
+    function sampleNegativeExponential(n) {
+      return sampleExponential(n).map(x => -x);
+    }
+
+    function sampleLognormal(n) {
+      return Array.from({ length: n }, () => Math.exp(0.75 * randn()));
+    }
+
+    function sampleNegativeLognormal(n) {
+      return sampleLognormal(n).map(x => -x);
+    }
+
+    function sampleGammaOne(shape) {
+      // Marsaglia y Tsang para shape >= 1; transformación para shape < 1.
+      if (shape < 1) {
+        const u = Math.random();
+        return sampleGammaOne(shape + 1) * Math.pow(u, 1 / shape);
+      }
+
+      const d = shape - 1 / 3;
+      const c = 1 / Math.sqrt(9 * d);
+
+      while (true) {
+        let x = randn();
+        let v = 1 + c * x;
+        if (v <= 0) continue;
+        v = v * v * v;
+        const u = Math.random();
+        if (u < 1 - 0.0331 * Math.pow(x, 4)) return d * v;
+        if (Math.log(u) < 0.5 * x * x + d * (1 - v + Math.log(v))) return d * v;
+      }
+    }
+
+    function sampleGamma(n, shape = 2) {
+      return Array.from({ length: n }, () => sampleGammaOne(shape));
+    }
+
+    function sampleNegativeGamma(n) {
+      return sampleGamma(n, 2).map(x => -x);
+    }
+
+    function sampleChiSquare(n, df = 3) {
+      return sampleGamma(n, df / 2).map(x => 2 * x);
+    }
+
+    function sampleStudentT(n, df = 3) {
+      return Array.from({ length: n }, () => {
+        const z = randn();
+        const chi = sampleGammaOne(df / 2) * 2;
+        return z / Math.sqrt(chi / df);
+      });
+    }
+
+    function sampleLaplace(n) {
+      return Array.from({ length: n }, () => {
+        const u = Math.random() - 0.5;
+        return -Math.sign(u) * Math.log(1 - 2 * Math.abs(u));
+      });
+    }
+
+    function sampleBimodal(n) {
+      const arr = [];
+      for (let i = 0; i < n; i++) {
+        if (i < n / 2) arr.push(-2 + 0.55 * randn());
+        else arr.push(2 + 0.55 * randn());
+      }
+      return arr;
+    }
+
+    function sampleBeta(n, a, b) {
+      return Array.from({ length: n }, () => {
+        const x = sampleGammaOne(a);
+        const y = sampleGammaOne(b);
+        return x / (x + y);
+      });
+    }
+
+    const questionBank = [
+      {
+        id: "normal",
+        label: "Normal",
+        generator: n => sampleNormal(n),
+        correct: "normal",
+        explanation: "Los puntos siguen aproximadamente una recta. No hay curvatura sistemática fuerte ni extremos claramente alejados."
+      },
+      {
+        id: "uniforme",
+        label: "Uniforme",
+        generator: n => sampleUniform(n),
+        correct: "colas_ligeras",
+        explanation: "La uniforme suele mostrar colas más ligeras que la normal: los extremos quedan más acotados que lo esperado bajo normalidad."
+      },
+      {
+        id: "exponencial_derecha",
+        label: "Exponencial, cola derecha",
+        generator: n => sampleExponential(n),
+        correct: "cola_derecha",
+        explanation: "La curvatura indica asimetría positiva: muchos valores pequeños y algunos valores grandes en la cola derecha."
+      },
+      {
+        id: "exponencial_izquierda",
+        label: "Exponencial negativa, cola izquierda",
+        generator: n => sampleNegativeExponential(n),
+        correct: "cola_izquierda",
+        explanation: "La distribución está reflejada hacia la izquierda. El Q-Q plot sugiere asimetría negativa."
+      },
+      {
+        id: "lognormal_derecha",
+        label: "Lognormal, cola derecha",
+        generator: n => sampleLognormal(n),
+        correct: "cola_derecha",
+        explanation: "La lognormal tiene valores positivos y cola derecha marcada; el Q-Q normal muestra una curvatura evidente."
+      },
+      {
+        id: "lognormal_izquierda",
+        label: "Lognormal negativa, cola izquierda",
+        generator: n => sampleNegativeLognormal(n),
+        correct: "cola_izquierda",
+        explanation: "Es una lognormal reflejada. El patrón principal es cola izquierda o sesgo negativo."
+      },
+      {
+        id: "gamma_derecha",
+        label: "Gamma, cola derecha",
+        generator: n => sampleGamma(n, 2),
+        correct: "cola_derecha",
+        explanation: "La gamma suele ser positiva y asimétrica a la derecha. El Q-Q normal se curva por la cola derecha."
+      },
+      {
+        id: "gamma_izquierda",
+        label: "Gamma negativa, cola izquierda",
+        generator: n => sampleNegativeGamma(n),
+        correct: "cola_izquierda",
+        explanation: "Es una gamma reflejada. La mayor desviación corresponde a una cola izquierda."
+      },
+      {
+        id: "chi_cuadrada",
+        label: "Chi-cuadrada",
+        generator: n => sampleChiSquare(n, 3),
+        correct: "cola_derecha",
+        explanation: "La chi-cuadrada con pocos grados de libertad es asimétrica a la derecha."
+      },
+      {
+        id: "t_student",
+        label: "t de Student con pocos grados de libertad",
+        generator: n => sampleStudentT(n, 3),
+        correct: "colas_pesadas",
+        explanation: "El centro puede parecer normal, pero los extremos se alejan. Eso sugiere colas más pesadas que la normal."
+      },
+      {
+        id: "laplace",
+        label: "Laplace",
+        generator: n => sampleLaplace(n),
+        correct: "colas_pesadas",
+        explanation: "La distribución es simétrica, pero con más extremos que una normal. El Q-Q plot muestra desviaciones en ambas colas."
+      },
+      {
+        id: "bimodal",
+        label: "Bimodal o mezcla de grupos",
+        generator: n => sampleBimodal(n),
+        correct: "mezcla",
+        explanation: "El patrón no sólo es cola pesada o sesgo; puede sugerir dos subpoblaciones o mezcla de grupos."
+      },
+      {
+        id: "beta_derecha",
+        label: "Beta 2,5, sesgo derecha",
+        generator: n => sampleBeta(n, 2, 5),
+        correct: "cola_derecha",
+        explanation: "La beta 2,5 está acotada, pero tiene sesgo hacia la derecha en esta parametrización."
+      },
+      {
+        id: "beta_izquierda",
+        label: "Beta 5,2, sesgo izquierda",
+        generator: n => sampleBeta(n, 5, 2),
+        correct: "cola_izquierda",
+        explanation: "La beta 5,2 está acotada, pero tiene sesgo hacia la izquierda en esta parametrización."
+      }
+    ];
+
+    const options = [
+      { value: "normal", text: "Normalidad aproximada" },
+      { value: "cola_derecha", text: "Sesgo o cola hacia la derecha" },
+      { value: "cola_izquierda", text: "Sesgo o cola hacia la izquierda" },
+      { value: "colas_pesadas", text: "Colas pesadas en ambos extremos" },
+      { value: "colas_ligeras", text: "Colas ligeras o datos más acotados que la normal" },
+      { value: "mezcla", text: "Posible mezcla de grupos o distribución bimodal" }
+    ];
+
+    let evaluation = {
+      startedAt: null,
+      finishedAt: null,
+      student: "",
+      group: "",
+      n: 150,
+      questions: [],
+      current: 0,
+      answers: []
+    };
+
+    // ============================================================
+    // Gráficos
+    // ============================================================
+
+    function qqData(arr) {
+      const z = standardize(arr).sort((a, b) => a - b);
+      const n = z.length;
+      const theoretical = [];
+      for (let i = 0; i < n; i++) {
+        const p = (i + 0.5) / n;
+        theoretical.push(normInv(p));
+      }
+      return { theoretical, observed: z };
+    }
+
+    function drawAxes(ctx, x, y, w, h, title, xLabel, yLabel) {
+      ctx.strokeStyle = "#CBD5E1";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x, y, w, h);
+
+      ctx.fillStyle = "#111827";
+      ctx.font = "bold 18px Arial";
+      ctx.textAlign = "center";
+      ctx.fillText(title, x + w / 2, y - 12);
+
+      ctx.font = "14px Arial";
+      ctx.fillStyle = "#475569";
+      ctx.fillText(xLabel, x + w / 2, y + h + 38);
+
+      ctx.save();
+      ctx.translate(x - 42, y + h / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillText(yLabel, 0, 0);
+      ctx.restore();
+    }
+
+    function drawHistogram(ctx, arr, x, y, w, h) {
+      const z = standardize(arr);
+      const minX = -4;
+      const maxX = 4;
+      const bins = 28;
+      const counts = Array(bins).fill(0);
+      const binWidth = (maxX - minX) / bins;
+
+      z.forEach(v => {
+        if (v >= minX && v <= maxX) {
+          const idx = Math.min(bins - 1, Math.max(0, Math.floor((v - minX) / binWidth)));
+          counts[idx]++;
+        }
+      });
+
+      const maxCount = Math.max(...counts, 1);
+      const left = x + 55;
+      const top = y + 30;
+      const plotW = w - 75;
+      const plotH = h - 70;
+      const baseY = top + plotH;
+
+      drawAxes(ctx, left, top, plotW, plotH, "Histograma", "Valores estandarizados", "Frecuencia");
+
+      for (let i = 0; i < bins; i++) {
+        const barH = (counts[i] / maxCount) * plotH;
+        const bx = left + (i / bins) * plotW;
+        const bw = plotW / bins - 1;
+        ctx.fillStyle = "#93C5FD";
+        ctx.fillRect(bx, baseY - barH, bw, barH);
+      }
+
+      // Curva normal de referencia, escalada a la altura del histograma.
+      ctx.beginPath();
+      ctx.strokeStyle = "#1E3A8A";
+      ctx.lineWidth = 2;
+      for (let i = 0; i <= 240; i++) {
+        const xv = minX + (i / 240) * (maxX - minX);
+        const pdf = Math.exp(-0.5 * xv * xv) / Math.sqrt(2 * Math.PI);
+        const px = left + ((xv - minX) / (maxX - minX)) * plotW;
+        const py = baseY - (pdf / 0.45) * plotH;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.stroke();
+    }
+
+    function drawQQ(ctx, arr, x, y, w, h) {
+      const { theoretical, observed } = qqData(arr);
+      const all = theoretical.concat(observed);
+      let lo = Math.min(...all);
+      let hi = Math.max(...all);
+      const pad = (hi - lo) * 0.08 || 1;
+      lo -= pad;
+      hi += pad;
+
+      const left = x + 65;
+      const top = y + 30;
+      const plotW = w - 85;
+      const plotH = h - 70;
+
+      function sx(v) { return left + ((v - lo) / (hi - lo)) * plotW; }
+      function sy(v) { return top + plotH - ((v - lo) / (hi - lo)) * plotH; }
+
+      drawAxes(ctx, left, top, plotW, plotH, "Q-Q plot normal", "Cuantiles teóricos normales", "Cuantiles observados");
+
+      ctx.beginPath();
+      ctx.strokeStyle = "#DC2626";
+      ctx.lineWidth = 2;
+      ctx.moveTo(sx(lo), sy(lo));
+      ctx.lineTo(sx(hi), sy(hi));
+      ctx.stroke();
+
+      ctx.fillStyle = "#111827";
+      for (let i = 0; i < theoretical.length; i++) {
+        ctx.beginPath();
+        ctx.arc(sx(theoretical[i]), sy(observed[i]), 2.7, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    function drawQuestionPlot(arr) {
+      const canvas = document.getElementById("plotCanvas");
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      drawHistogram(ctx, arr, 20, 55, 520, 420);
+      drawQQ(ctx, arr, 560, 55, 520, 420);
+
+      const asim = skewness(arr);
+      const curt = excessKurtosis(arr);
+      ctx.fillStyle = "#475569";
+      ctx.font = "14px Arial";
+      ctx.textAlign = "left";
+      ctx.fillText(`Asimetría muestral: ${asim.toFixed(2)}    Curtosis en exceso: ${curt.toFixed(2)}`, 24, 28);
+    }
+
+    // ============================================================
+    // Evaluación
+    // ============================================================
+
+    function shuffle(arr) {
+      const copy = arr.slice();
+      for (let i = copy.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [copy[i], copy[j]] = [copy[j], copy[i]];
+      }
+      return copy;
+    }
+
+    function startEvaluation() {
+      const n = parseInt(document.getElementById("sampleSize").value, 10);
+      const qCount = parseInt(document.getElementById("questionCount").value, 10);
+
+      evaluation = {
+        startedAt: new Date(),
+        finishedAt: null,
+        student: document.getElementById("studentName").value.trim() || "Sin nombre",
+        group: document.getElementById("groupName").value.trim() || "Sin grupo",
+        n: Math.min(2000, Math.max(20, Number.isFinite(n) ? n : 150)),
+        questions: [],
+        current: 0,
+        answers: []
+      };
+
+      const selected = shuffle(questionBank).slice(0, Math.min(qCount, questionBank.length));
+      evaluation.questions = selected.map(q => ({
+        ...q,
+        data: q.generator(evaluation.n)
+      }));
+
+      document.getElementById("configCard").classList.add("hidden");
+      document.getElementById("resultsCard").classList.add("hidden");
+      document.getElementById("questionCard").classList.remove("hidden");
+      renderQuestion();
+    }
+
+    function renderQuestion() {
+      const q = evaluation.questions[evaluation.current];
+      document.getElementById("progress").textContent = `Pregunta ${evaluation.current + 1} de ${evaluation.questions.length}`;
+      document.getElementById("seedInfo").textContent = `n = ${evaluation.n} datos`;
+      document.getElementById("questionTitle").textContent = "Observa el histograma y el Q-Q plot normal";
+
+      drawQuestionPlot(q.data);
+
+      const optionsBox = document.getElementById("options");
+      optionsBox.innerHTML = "";
+      const mixedOptions = shuffle(options);
+
+      mixedOptions.forEach((opt, idx) => {
+        const id = `opt_${evaluation.current}_${idx}`;
+        const label = document.createElement("label");
+        label.className = "option";
+        label.setAttribute("for", id);
+        label.innerHTML = `
+          <input id="${id}" name="answer" type="radio" value="${opt.value}" required>
+          <span>${opt.text}</span>
+        `;
+        optionsBox.appendChild(label);
+      });
+    }
+
+    function submitAnswer(event) {
+      event.preventDefault();
+      const selected = document.querySelector('input[name="answer"]:checked');
+      if (!selected) return;
+
+      const q = evaluation.questions[evaluation.current];
+      const chosenText = options.find(o => o.value === selected.value).text;
+      const correctText = options.find(o => o.value === q.correct).text;
+
+      evaluation.answers.push({
+        questionNumber: evaluation.current + 1,
+        realDistribution: q.label,
+        chosen: selected.value,
+        chosenText,
+        correct: q.correct,
+        correctText,
+        isCorrect: selected.value === q.correct,
+        explanation: q.explanation
+      });
+
+      evaluation.current++;
+
+      if (evaluation.current >= evaluation.questions.length) {
+        finishEvaluation();
+      } else {
+        renderQuestion();
+      }
+    }
+
+    function finishEvaluation() {
+      evaluation.finishedAt = new Date();
+
+      document.getElementById("questionCard").classList.add("hidden");
+      document.getElementById("resultsCard").classList.remove("hidden");
+
+      const total = evaluation.answers.length;
+      const correct = evaluation.answers.filter(a => a.isCorrect).length;
+      const score = total > 0 ? (100 * correct / total) : 0;
+
+      const started = formatDateTime(evaluation.startedAt);
+      const finished = formatDateTime(evaluation.finishedAt);
+
+      document.getElementById("summary").innerHTML = `
+        <p><strong>Estudiante:</strong> ${escapeHTML(evaluation.student)}</p>
+        <p><strong>Grupo:</strong> ${escapeHTML(evaluation.group)}</p>
+        <p><strong>Fecha y hora de inicio:</strong> ${started}</p>
+        <p><strong>Fecha y hora de finalización:</strong> ${finished}</p>
+        <p><strong>Tamaño de muestra usado en cada gráfico:</strong> ${evaluation.n} datos</p>
+        <p><strong>Resultado:</strong> ${correct} de ${total} respuestas correctas.</p>
+        <p><strong>Calificación:</strong> <span class="${score >= 70 ? "ok" : "warn"}">${score.toFixed(1)}%</span></p>
+      `;
+
+      let html = `
+        <h3>Detalle de respuestas</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Pregunta</th>
+              <th>Respuesta del estudiante</th>
+              <th>Respuesta esperada</th>
+              <th>Resultado</th>
+              <th>Explicación</th>
+            </tr>
+          </thead>
+          <tbody>
+      `;
+
+      evaluation.answers.forEach(a => {
+        html += `
+          <tr>
+            <td>${a.questionNumber}</td>
+            <td>${escapeHTML(a.chosenText)}</td>
+            <td>${escapeHTML(a.correctText)}</td>
+            <td>${a.isCorrect ? '<span class="ok">Correcta</span>' : '<span class="bad">Incorrecta</span>'}</td>
+            <td>${escapeHTML(a.explanation)}</td>
+          </tr>
+        `;
+      });
+
+      html += `</tbody></table>`;
+      html += `<p class="muted"><strong>Clave interna para el profesor:</strong> las distribuciones reales fueron: ${evaluation.answers.map(a => `P${a.questionNumber}: ${a.realDistribution}`).join("; ")}.</p>`;
+      document.getElementById("details").innerHTML = html;
+    }
+
+    function formatDateTime(date) {
+      if (!date) return "";
+      return date.toLocaleString("es-MX", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+    }
+
+    function escapeHTML(str) {
+      return String(str)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function resultAsText() {
+      const total = evaluation.answers.length;
+      const correct = evaluation.answers.filter(a => a.isCorrect).length;
+      const score = total > 0 ? (100 * correct / total) : 0;
+
+      let txt = "Evaluación: patrones en gráficos Q-Q\n";
+      txt += "====================================\n";
+      txt += `Estudiante: ${evaluation.student}\n`;
+      txt += `Grupo: ${evaluation.group}\n`;
+      txt += `Fecha y hora de inicio: ${formatDateTime(evaluation.startedAt)}\n`;
+      txt += `Fecha y hora de finalización: ${formatDateTime(evaluation.finishedAt)}\n`;
+      txt += `Datos por gráfico: ${evaluation.n}\n`;
+      txt += `Resultado: ${correct} de ${total}\n`;
+      txt += `Calificación: ${score.toFixed(1)}%\n\n`;
+
+      evaluation.answers.forEach(a => {
+        txt += `Pregunta ${a.questionNumber}\n`;
+        txt += `Respuesta del estudiante: ${a.chosenText}\n`;
+        txt += `Respuesta esperada: ${a.correctText}\n`;
+        txt += `Resultado: ${a.isCorrect ? "Correcta" : "Incorrecta"}\n`;
+        txt += `Explicación: ${a.explanation}\n`;
+        txt += `Clave profesor: ${a.realDistribution}\n\n`;
+      });
+
+      return txt;
+    }
+
+    function downloadResult() {
+      const blob = new Blob([resultAsText()], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const safeName = evaluation.student.replace(/[^a-z0-9ñáéíóúü_-]+/gi, "_").slice(0, 40) || "estudiante";
+      a.href = url;
+      a.download = `resultado_qq_${safeName}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    // ============================================================
+    // Eventos
+    // ============================================================
+
+    document.getElementById("startBtn").addEventListener("click", startEvaluation);
+    document.getElementById("answerForm").addEventListener("submit", submitAnswer);
+    document.getElementById("finishEarlyBtn").addEventListener("click", finishEvaluation);
+    document.getElementById("printBtn").addEventListener("click", () => window.print());
+    document.getElementById("downloadBtn").addEventListener("click", downloadResult);
+    document.getElementById("restartBtn").addEventListener("click", () => location.reload());
+  </script>
+</body>
+</html>
